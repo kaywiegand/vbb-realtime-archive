@@ -1,0 +1,65 @@
+name: compact
+
+# Once a day, well after midnight UTC so the previous day is definitely closed.
+# Also acts as a safety net for the 60 day schedule shutdown: even if the
+# collector produced nothing, this job runs and keeps the repository active.
+on:
+  schedule:
+    - cron: "40 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: compact
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  compact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install collector dependencies
+        run: pip install -r requirements-collect.txt
+
+      - name: Compact finished days
+        run: PYTHONPATH=src python -m vbb_realtime_archive.compact
+
+      - name: Report archive size
+        run: |
+          echo "### Archive" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Day | Size |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| :-- | ---: |" >> "$GITHUB_STEP_SUMMARY"
+          for f in data/interim/*.parquet; do
+            [ -e "$f" ] || continue
+            echo "| $(basename "$f" .parquet) | $(du -h "$f" | cut -f1) |" >> "$GITHUB_STEP_SUMMARY"
+          done
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Total: $(du -sh data/ | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit compacted days
+        run: |
+          git config user.name "vbb-archive-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data/
+          if git diff --cached --quiet; then
+            echo "nothing to compact"
+            exit 0
+          fi
+          git commit -m "data: compact $(date -u '+%Y-%m-%d')"
+          for attempt in 1 2 3; do
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push && exit 0
+            echo "push attempt $attempt failed, retrying"
+            sleep 5
+          done
+          exit 1

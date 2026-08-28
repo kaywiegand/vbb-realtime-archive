@@ -4,15 +4,21 @@
 # uv.lock wird NICHT ignoriert – Lockfile gehört in Git!
 
 # ── Daten ──────────────────────────────────────────────────────────────────
-data/raw/
-data/interim/
+# Abweichung vom Standard-Scaffold: dieses Projekt IST ein Archiv. Die
+# gesammelten Parquet-Dateien unter data/raw und data/interim gehoeren bewusst
+# ins Repo, sie sind das Produkt und kein Nebenprodukt. Jeder Sammel-Lauf
+# committet und haelt damit zugleich den GitHub-Actions-Schedule am Leben, der
+# sonst nach 60 Tagen ohne Commit automatisch abgeschaltet wuerde.
 data/processed/
 *.csv
 *.xlsx
-*.parquet
 *.feather
 *.h5
 *.hdf5
+
+*.parquet
+!data/raw/**/*.parquet
+!data/interim/*.parquet
 
 # ── Modelle & Artefakte ────────────────────────────────────────────────────
 models/
@@ -35,6 +41,7 @@ build/
 
 # ── Virtuelle Umgebung (uv erstellt .venv/) ────────────────────────────────
 .venv/
+.venv*/
 .env
 *.env
 

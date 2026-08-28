@@ -1,0 +1,8 @@
+# Schlanke Abhaengigkeiten nur fuer collect.py und compact.py.
+# Bewusst getrennt von pyproject.toml: die CI soll weder pandas noch Jupyter
+# noch das Toolkit aus Git installieren, das kostet bei 96 Laeufen pro Tag
+# unnoetig Zeit und macht den Sammler von Dingen abhaengig, die er nicht braucht.
+httpx>=0.27
+gtfs-realtime-bindings>=1.0
+pyarrow>=14.0
+duckdb>=1.0
